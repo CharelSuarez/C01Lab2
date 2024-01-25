@@ -172,3 +172,105 @@ app.get("/getNote/:noteId", express.json(), async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Retrieve all notes belonging to the user
+app.get("/getAllNotes", express.json(), async (req, res) => {
+    try {
+        // Verify the JWT from the request headers
+        const token = req.headers.authorization.split(" ")[1];
+        jwt.verify(token, JWT_SECRET_KEY, async (err, decoded) => {
+            if (err) {
+                return res.status(401).send("Unauthorized.");
+            }
+
+            // Find note with given ID
+            const collection = db.collection(COLLECTIONS.notes);
+            const data = await collection.find({
+                username: decoded.username
+            }).toArray();
+            res.json({ response: data });
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete a note belonging to the user
+app.delete("/deleteNote/:noteId", express.json(), async (req, res) => {
+    try {
+        // Basic param checking
+        const noteId = req.params.noteId;
+        if (!ObjectId.isValid(noteId)) {
+            return res.status(400).json({ error: "Invalid note ID." });
+        }
+
+        // Verify the JWT from the request headers
+        const token = req.headers.authorization.split(" ")[1];
+        jwt.verify(token, JWT_SECRET_KEY, async (err, decoded) => {
+            if (err) {
+                return res.status(401).send("Unauthorized.");
+            }
+
+            // Find note with given ID
+            const collection = db.collection(COLLECTIONS.notes);
+            const data = await collection.findOne({
+                username: decoded.username,
+                _id: new ObjectId(noteId),
+            });
+            if (!data) {
+                return res
+                    .status(404)
+                    .json({ error: "Unable to find note with given ID." });
+            }
+            res.json({ response: `Document with ID ${noteId} properly deleted.` });
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete a note belonging to the user
+app.patch("/editNote/:noteId", express.json(), async (req, res) => {
+    try {
+        // Basic param checking
+        const noteId = req.params.noteId;
+        if (!ObjectId.isValid(noteId)) {
+            return res.status(400).json({ error: "Invalid note ID." });
+        }
+
+        // Verify the JWT from the request headers
+        const token = req.headers.authorization.split(" ")[1];
+        jwt.verify(token, JWT_SECRET_KEY, async (err, decoded) => {
+            if (err) {
+                return res.status(401).send("Unauthorized.");
+            }
+
+            const newContent = {};
+            if (req.body.title) newContent["title"] = req.body.title;
+            if (req.body.content) newContent["content"] = req.body.content;
+            if (!req.body.title && !req.body.content) {
+                return res.status(400).json({ error: "You must update the title and/or content field(s)." });
+            }
+            
+            // Find and update note with given ID
+            const collection = db.collection(COLLECTIONS.notes);
+            const data = await collection.findOneAndUpdate({
+                username: decoded.username,
+                _id: new ObjectId(noteId),
+            }, {
+                $set: newContent
+            });
+            if (!data) {
+                return res
+                    .status(404)
+                    .json({ error: "Unable to find note with given ID." });
+            }
+            if (req.body.title) {
+
+            }
+            res.json({ response: `Document with ID ${noteId} properly updated.` });
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
